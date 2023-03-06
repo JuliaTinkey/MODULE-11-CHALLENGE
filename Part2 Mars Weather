@@ -1,0 +1,189 @@
+# Module 12 Challenge
+## Deliverable 2: Scrape and Analyze Mars Weather Data
+# Import relevant libraries
+from splinter import Browser
+from bs4 import BeautifulSoup as soup
+import matplotlib.pyplot as plt
+import pandas as pd
+browser = Browser('chrome')
+### Step 1: Visit the Website
+
+Use automated browsing to visit the [Mars Temperature Data Site](https://static.bc-edx.com/data/web/mars_facts/temperature.html). Inspect the page to identify which elements to scrape.
+
+   > **Hint** To identify which elements to scrape, you might want to inspect the page by using Chrome DevTools to discover whether the table contains usable classes.
+
+# Visit the website
+# https://static.bc-edx.com/data/web/mars_facts/temperature.html
+
+url = 'https://static.bc-edx.com/data/web/mars_facts/temperature.html'
+browser.visit(url)
+### Step 2: Scrape the Table
+
+Create a Beautiful Soup object and use it to scrape the data in the HTML table.
+
+Note that this can also be achieved by using the Pandas `read_html` function. However, use Beautiful Soup here to continue sharpening your web scraping skills.
+# Create a Beautiful Soup Object
+
+html = browser.html
+html_soup = soup(html, 'html.parser')
+
+
+# Extract all rows of data
+
+table_header = html_soup.find_all('th')
+print(table_header)
+
+table_rows = html_soup.find_all('tr',class_='data-row')
+print(table_rows)
+
+### Step 3: Store the Data
+
+Assemble the scraped data into a Pandas DataFrame. The columns should have the same headings as the table on the website. Here’s an explanation of the column headings:
+
+* `id`: the identification number of a single transmission from the Curiosity rover
+* `terrestrial_date`: the date on Earth
+* `sol`: the number of elapsed sols (Martian days) since Curiosity landed on Mars
+* `ls`: the solar longitude
+* `month`: the Martian month
+* `min_temp`: the minimum temperature, in Celsius, of a single Martian day (sol)
+* `pressure`: The atmospheric pressure at Curiosity's location
+# Create an empty list
+
+header_elements = []
+row_elements = []
+
+# Loop through the scraped data to create a list of rows
+
+for header_element in table_header: 
+    headings = header_element.text.strip()
+    header_elements.append(headings)
+
+print(header_elements)
+
+for row in table_rows:
+    data = row.find_all('td')
+    row_data = [td.text.strip() for td in data]
+    row_elements.append(row_data)
+    
+print(row_elements)
+# Create a Pandas DataFrame by using the list of rows and a list of the column names
+
+mars_weather_df = pd.DataFrame(row_elements, columns=header_elements)
+
+print(mars_weather_df)
+# Confirm DataFrame was created successfully
+
+mars_weather_df
+### Step 4: Prepare Data for Analysis
+
+Examine the data types that are currently associated with each column. If necessary, cast (or convert) the data to the appropriate `datetime`, `int`, or `float` data types.
+
+  > **Hint** You can use the Pandas `astype` and `to_datetime` methods to accomplish this task.
+
+# Examine data type of each column
+
+print(mars_weather_df.dtypes)
+# Change data types for data analysis
+
+mars_weather_df[['terrestrial_date']] = mars_weather_df[['terrestrial_date']].astype('datetime64[ns]')
+mars_weather_df[['sol', 'ls', 'month']] = mars_weather_df[['sol', 'ls', 'month']].astype('int64')
+mars_weather_df[['min_temp', 'pressure']] = mars_weather_df[['min_temp','pressure']].astype('float64')
+
+print(mars_weather_df.dtypes)
+
+# Confirm type changes were successful by examining data types again
+
+print(mars_weather_df.dtypes)
+### Step 5: Analyze the Data
+
+Analyze your dataset by using Pandas functions to answer the following questions:
+
+1. How many months exist on Mars?
+2. How many Martian (and not Earth) days worth of data exist in the scraped dataset?
+3. What are the coldest and the warmest months on Mars (at the location of Curiosity)? To answer this question:
+    * Find the average the minimum daily temperature for all of the months.
+    * Plot the results as a bar chart.
+4. Which months have the lowest and the highest atmospheric pressure on Mars? To answer this question:
+    * Find the average the daily atmospheric pressure of all the months.
+    * Plot the results as a bar chart.
+5. About how many terrestrial (Earth) days exist in a Martian year? To answer this question:
+    * Consider how many days elapse on Earth in the time that Mars circles the Sun once.
+    * Visually estimate the result by plotting the daily minimum temperature.
+
+# 1. How many months are there on Mars?
+
+print (f"The number of months on mars is: {mars_weather_df['month'].max()}") 
+
+# 2. How many Martian days' worth of data are there?
+
+print (f"The number of Martian days (sols) worth of data: {mars_weather_df['sol'].max()}") 
+
+# 3. What is the average low temperature by month?
+
+mars_month_temp = mars_weather_df[['month','min_temp']].groupby(by='month').mean()
+
+mars_month_temp['min_temp'] = mars_month_temp['min_temp'].round(decimals = 2)
+
+mars_month_temp
+# Plot the average temperature by month
+
+fig, ax = plt.subplots(figsize=[10,5])
+ax = plt.bar(mars_month_temp.index,mars_month_temp.min_temp)
+plt.xticks(ticks = range(1,13,1))
+plt.xlabel('Month')
+plt.ylabel('Temperature')
+plt.title('Average Temperature by Month')
+plt.show()
+# Identify the coldest and hottest months in Curiosity's location
+
+print (f"The coldest month in Curiosity's location: {mars_month_temp['min_temp'].idxmin()}") 
+
+print (f"The hottest month in in Curiosity's location: {mars_month_temp['min_temp'].idxmax()}") 
+
+# 4. Average pressure by Martian month
+
+mars_month_pressure = mars_weather_df[['month','pressure']].groupby(by='month').mean()
+
+mars_month_pressure['pressure'] = mars_month_pressure['pressure'].round(decimals = 2)
+
+mars_month_pressure
+
+# Plot the average pressure by month
+
+fig, ax = plt.subplots(figsize=[10,6])
+ax = plt.bar(mars_month_pressure.index,mars_month_pressure.pressure)
+plt.xticks(ticks = range(1,13,1))
+plt.xlabel('Month')
+plt.ylabel('Average Pressure')
+plt.title('Average Pressure by Month')
+plt.show()
+
+# 5. How many terrestrial (earth) days are there in a Martian year?
+
+fig, ax = plt.subplots(figsize=[17,5])
+ax = plt.plot(mars_weather_df.terrestrial_date, mars_weather_df.min_temp)
+plt.grid(visible=True, which='both')
+plt.xlabel('Date')
+plt.ylabel('Temperature')
+plt.title('Earth Days in Martian Year')
+plt.show()
+
+
+On average, the third month has the coldest minimum temperature on Mars, and the eighth month is the warmest. But it is always very cold there in human terms!
+
+
+Atmospheric pressure is, on average, lowest in the sixth month and highest in the ninth.
+The distance from peak to peak is roughly 1425-750, or 675 days. A year on Mars appears to be about 675 days from the plot. Internet search confirms that a Mars year is equivalent to 687 earth days.
+### Step 6: Save the Data
+
+Export the DataFrame to a CSV file.
+# Write the data to a CSV
+
+mars_weather_df.to_csv("csv/mars_weather.csv")
+
+mars_month_temp.to_csv("csv/mars_month_temp.csv")
+
+mars_month_pressure.to_csv("csv/mars_month_pressure.csv")
+
+
+browser.quit()
